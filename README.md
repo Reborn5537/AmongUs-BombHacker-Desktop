@@ -1,4 +1,4 @@
-# 👺 SickoMenu v3.6.1
+# 👺 BombHacker 0.8-Alpha Based on SickoMenu-3.6.1-Not-Original-
 A highly sophisticated cheat menu for Among Us based on AmongUsMenu which promises more features and regular updates.
 
 Join our very own Discord server for support, bug reports, and sneak peeks!
@@ -58,8 +58,7 @@ First you will need protontricks, you can install it with your packager of choic
 11. SickoMenu should now work properly in the game
 
 ## ⌨️ Default Hotkeys
-- Show Menu - DELETE
-- Show Radar - INSERT
+- Show Menu - INSERT
 - Show Console - HOME
 - Show Replay - END
 - Repair Sabotage - PAGE DOWN (PgDn)
