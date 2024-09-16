@@ -1,2 +1,2 @@
-#define GIT_CUR_COMMIT ea83d4df75e2c0044a0c49ac5f65a14638925f75
+#define GIT_CUR_COMMIT 4eb18ecde4c1a7249a85cbabc60ef3fa5d4056bf
 #define GIT_BRANCH main
