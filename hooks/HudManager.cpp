@@ -5,6 +5,7 @@
 #include "game.h"
 
 void dHudManager_Update(HudManager* __this, MethodInfo* method) {
+	if (State.ShowHookLogs) LOG_DEBUG("Hook dHudManager_Update executed");
 	try {
 		static bool bChatAlwaysActivePrevious = false;
 		if (bChatAlwaysActivePrevious != State.ChatAlwaysActive)
@@ -21,7 +22,7 @@ void dHudManager_Update(HudManager* __this, MethodInfo* method) {
 			__this->fields.Chat->fields.freeChatField->fields.textArea->fields.AllowPaste = State.ChatPaste && !State.PanicMode;
 		}
 
-
+		
 		static bool DisableActivation = false; //so a ghost seek button doesn't show up
 
 		if (State.InMeeting)
@@ -50,7 +51,7 @@ void dHudManager_Update(HudManager* __this, MethodInfo* method) {
 						(State.PanicMode || (!(State.IsRevived || State.FreeCam || State.EnableZoom || State.playerToFollow.has_value() || State.Wallhack || (State.MaxVision && IsInLobby()))))
 						&& !localData->fields.IsDead,
 						NULL);
-
+				
 				if (State.OutfitCooldown == 0) {
 					if (!State.CanChangeOutfit && IsInLobby() && !State.PanicMode && State.confuser && State.confuseOnJoin)
 						ControlAppearance(true);
@@ -87,24 +88,33 @@ void dHudManager_Update(HudManager* __this, MethodInfo* method) {
 					}
 					else
 					{
-						app::GameObject_SetActive(ImpostorVentButton, (State.UnlockVents && !State.PanicMode) || (((*Game::pLocalPlayer)->fields.inVent && role == RoleTypes__Enum::Engineer)) || (PlayerIsImpostor(localData) && GameOptions().GetGameMode() == GameModes__Enum::Normal), nullptr);
+						app::GameObject_SetActive(ImpostorVentButton, (State.UnlockVents && !State.PanicMode) || (((*Game::pLocalPlayer)->fields.inVent && role != RoleTypes__Enum::Engineer)) || (PlayerIsImpostor(localData) && GameOptions().GetGameMode() == GameModes__Enum::Normal), nullptr);
 					}
 				}
 
-				if ((IsInGame() || IsInLobby())) {
+				if ((IsInGame() || (IsInLobby() && State.KillInLobbies))) {
+					bool amImpostor = false;
+					try {
+						amImpostor = PlayerIsImpostor(localData);
+					}
+					catch (...) {
+						LOG_ERROR("Exception occured while fetching whether player is impostor or not.");
+					}
+
 					for (auto player : GetAllPlayerControl())
 					{
 						auto playerInfo = GetPlayerData(player);
 						if (!playerInfo) break; //This happens sometimes during loading
 
-						if (!State.PanicMode && State.KillImpostors && !playerInfo->fields.IsDead && PlayerIsImpostor(localData))
+
+						if ((!IsInLobby()) && !State.PanicMode && State.KillImpostors && !playerInfo->fields.IsDead && amImpostor)
 							playerInfo->fields.Role->fields.CanBeKilled = true;
 						else if (PlayerIsImpostor(playerInfo))
 							playerInfo->fields.Role->fields.CanBeKilled = false;
 					}
 					GameObject* KillButton = app::Component_get_gameObject((Component_1*)__this->fields.KillButton, NULL);
 					if (KillButton != NULL && (IsInGame())) {
-						if ((!State.PanicMode && State.UnlockKillButton && !localData->fields.IsDead) || PlayerIsImpostor(localData)) {
+						if ((!State.PanicMode && State.UnlockKillButton && (IsHost() || !State.SafeMode) && !localData->fields.IsDead) || amImpostor) {
 							app::GameObject_SetActive(KillButton, true, nullptr);
 							playerRole->fields.CanUseKillButton = true;
 						}
@@ -127,43 +137,48 @@ void dHudManager_Update(HudManager* __this, MethodInfo* method) {
 }
 
 void dVersionShower_Start(VersionShower* __this, MethodInfo* method) {
+	if (State.ShowHookLogs) LOG_DEBUG("Hook dVersionShower_Start executed");
 	VersionShower_Start(__this, method);
-	const auto& versionText = !State.PanicMode && !State.HideWatermark ? std::format("<size=75%><cspace=+0.1><font=\"Barlow-Bold SDF\" material=\"Barlow-Italic SDF Outline\"><b>{}</cspace><cspace=+0.1> ~ <#0f0>Bomb</color><#f00>Hacker</color> <#fb0>{}</color> by <#9ef>Reborn#5537</color></size></cspace>",
-		convert_from_string(app::TMP_Text_get_text((app::TMP_Text*)__this->fields.text, nullptr)), State.SickoVersion) :
+	const auto& versionText = !State.PanicMode && !State.HideWatermark ? std::format("<size=75%>{}{} ~ <#0f0>Bomb</color><#f00>Hacker</color> <#fb0>{}</color> by <#39f>Reborn#5537</color></color></size>",
+		State.DarkMode ? "<#666>" : "<#fff>", convert_from_string(app::TMP_Text_get_text((app::TMP_Text*)__this->fields.text, nullptr)), State.SickoVersion) :
 		convert_from_string(app::TMP_Text_get_text((app::TMP_Text*)__this->fields.text, nullptr));
 	app::TMP_Text_set_text((app::TMP_Text*)__this->fields.text, convert_to_string(versionText), nullptr);
 }
 
 void dPingTracker_Update(PingTracker* __this, MethodInfo* method) {
+	if (State.ShowHookLogs) LOG_DEBUG("Hook dPingTracker_Update executed");
 	app::PingTracker_Update(__this, method);
-	app::TMP_Text_set_alignment((app::TMP_Text*)__this->fields.text, app::TextAlignmentOptions__Enum::TopGeoAligned, nullptr);
+	app::TMP_Text_set_alignment((app::TMP_Text*)__this->fields.text, app::TextAlignmentOptions__Enum::Top, nullptr);
+	//center the ping text when panic is enabled
 	try {
 		if (!IsStreamerMode() && !State.PanicMode) {
 			std::string ping = convert_from_string(app::TMP_Text_get_text((app::TMP_Text*)__this->fields.text, nullptr));
 			int fps = GetFps();
 			std::string fpsText = "";
 			if (State.ShowFps) {
-				if (fps <= 20) fpsText = std::format("<cspace=+0.5> ~ FPS: <#f00>{}</color></cspace>", fps);
-				else if (fps <= 40) fpsText = std::format("<cspace=+0.5> ~ <#ff0>FPS: {}</color></cspace>", fps);
-				else fpsText = std::format("<cspace=+0.5> ~ <#0f0>FPS: {}</color></cspace>", fps);
+				if (fps <= 20) fpsText = std::format(" ~ FPS: <#f00>{}</color>", fps);
+				else if (fps <= 40) fpsText = std::format(" ~ <#ff0>FPS: {}</color>", fps);
+				else fpsText = std::format(" ~ <#0f0>FPS: {}</color>", fps);
 			}
-			std::string autoKill = State.AutoKill ? "<cspace=+0.3> ~ <#f00>Autokill</color></cspace>" : "";
-			std::string noClip = State.NoClip ? "<cspace=+0.3> ~ NoClip</cspace>" : "";
-			std::string freeCam = State.FreeCam ? "<cspace=+0.3> ~ Freecam</cspace>" : "";
+			std::string autoKill = State.AutoKill ? " ~ <#f00>Autokill</color>" : "";
+			std::string noClip = State.NoClip ? " ~ NoClip" : "";
+			std::string freeCam = State.FreeCam ? " ~ Freecam" : "";
 			std::string spectating = "";
 			if (State.playerToFollow.has_value()) {
 				app::NetworkedPlayerInfo_PlayerOutfit* outfit = GetPlayerOutfit(GetPlayerData(GetPlayerControlById(State.playerToFollow.get_PlayerId())));
 				Color32 playerColor = GetPlayerColor(outfit->fields.ColorId);
 				std::string colorCode = std::format("<#{:02x}{:02x}{:02x}{:02x}>",
 					playerColor.r, playerColor.g, playerColor.b, playerColor.a);
-				spectating = "<cspace=+0.3> ~ Now Spectating: </cspace>" + colorCode + (convert_from_string(NetworkedPlayerInfo_get_PlayerName(GetPlayerData(GetPlayerControlById(State.playerToFollow.get_PlayerId())), nullptr))) + "</color>";
+				spectating = " ~ Now Spectating: " + colorCode + RemoveHtmlTags(convert_from_string(NetworkedPlayerInfo_get_PlayerName(GetPlayerData(GetPlayerControlById(State.playerToFollow.get_PlayerId())), nullptr))) + "</color>";
 			}
 			else spectating = "";
 			std::string hostText = State.ShowHost && IsInGame() ?
-				(IsHost() ? "<cspace=+0.3> ~ You are Host</cspace>" : std::format("<cspace=+0.3> ~ Host: {}</cspace>", GetHostUsername(true))) : "";
-			std::string voteKicksText = (State.ShowVoteKicks && State.VoteKicks > 0) ? std::format("<cspace=+0.3> ~ Vote Kicks: {}", State.VoteKicks) : "";
-			std::string watermarkText = std::format("<size={}%><cspace=+0.5><#0f0><font=\"Barlow-Bold SDF\" material=\"Barlow-Italic SDF Outline\"><b>Bomb</color><#f00>Hacker</color> <#fb0>{}</color> by <#9ef>Reborn#5537</color> ~ </cspace>", spectating == "" ? 100 : 50, State.SickoVersion);
-			std::string pingText = std::format("{}{}{}{}{}{}{}{}{}</size></cspace>", State.HideWatermark ? "" : watermarkText, ping, fpsText, hostText, voteKicksText, autoKill, noClip, freeCam, spectating, IsInGame() ? "" : "");
+				(IsHost() ? " ~ You are Host" : std::format(" ~ Host: {}", GetHostUsername(true))) : "";
+			std::string voteKicksText = (State.ShowVoteKicks && State.VoteKicks > 0) ? std::format(" Vote Kicks: {}", State.VoteKicks) : "";
+			std::string watermarkText = std::format("<size={}%><#0f0>Bomb</color><#f00>Hacker</color> <#fb0>{}</color> by <#39f>Reborn#5537</color> ~ ", spectating == "" ? 100 : 50, State.SickoVersion);
+			std::string pingText = std::format("{}{}{}{}{}{}{}{}{}</color></size>", State.DarkMode ? "<#666>" : "<#fff>",
+				State.HideWatermark ? "" : watermarkText, ping, fpsText, hostText, voteKicksText, autoKill, noClip, freeCam, spectating);
+			app::TMP_Text_set_alignment((app::TMP_Text*)__this->fields.text, app::TextAlignmentOptions__Enum::Top, nullptr);
 			app::TMP_Text_set_text((app::TMP_Text*)__this->fields.text, convert_to_string(pingText), nullptr);
 		}
 		else {
@@ -177,8 +192,10 @@ void dPingTracker_Update(PingTracker* __this, MethodInfo* method) {
 }
 
 bool dLogicGameFlowNormal_IsGameOverDueToDeath(LogicGameFlowNormal* __this, MethodInfo* method) {
+	if (State.ShowHookLogs) LOG_DEBUG("Hook dLogicGameFlowNormal_IsGameOverDueToDeath executed");
 	return false; //fix black screen when you set fake role
 }
 bool dLogicGameFlowHnS_IsGameOverDueToDeath(LogicGameFlowHnS* __this, MethodInfo* method) {
+	if (State.ShowHookLogs) LOG_DEBUG("Hook dLogicGameFlowHnS_IsGameOverDueToDeath executed");
 	return false; //fix black screen when you set fake role
 }

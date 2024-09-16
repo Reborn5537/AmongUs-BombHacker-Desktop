@@ -143,6 +143,7 @@ void DetourInitilization() {
 	HOOKFUNC(AmongUsClient_OnGameJoined);
 	HOOKFUNC(PlayerControl_OnGameStart);
 	HOOKFUNC(AmongUsClient_OnPlayerLeft);
+	HOOKFUNC(AmongUsClient_OnPlayerJoined);
 	HOOKFUNC(CustomNetworkTransform_SnapTo);
 	HOOKFUNC(LobbyBehaviour_Start);
 	HOOKFUNC(GameObject_SetActive);
@@ -188,7 +189,7 @@ void DetourInitilization() {
 	HOOKFUNC(KillButton_SetTarget);
 	HOOKFUNC(ImpostorRole_FindClosestTarget);
 	HOOKFUNC(MushroomDoorSabotageMinigame_Begin);
-	//HOOKFUNC(AmongUsClient_CoStartGameHost); Unfinished [Luckyheat]
+	//HOOKFUNC(AmongUsClient_CoStartGameHost);
 	HOOKFUNC(Console_1_CanUse);
 	HOOKFUNC(Ladder_SetDestinationCooldown);
 	HOOKFUNC(ZiplineConsole_SetDestinationCooldown);
@@ -205,6 +206,14 @@ void DetourInitilization() {
 	HOOKFUNC(DisconnectPopup_DoShow);
 	HOOKFUNC(EditAccountUsername_SaveUsername);
 	HOOKFUNC(GameManager_DidImpostorsWin);
+	HOOKFUNC(ShipStatus_HandleRpc);
+	HOOKFUNC(ExileController_BeginForGameplay);
+	HOOKFUNC(ChatBubble_SetText);
+	HOOKFUNC(PlayerControl_CmdCheckVanish);
+	HOOKFUNC(PlayerControl_CmdCheckAppear);
+	HOOKFUNC(PlayerControl_SetRoleInvisibility);
+	HOOKFUNC(ShipStatus_UpdateSystem);
+	HOOKFUNC(PlayerControl_CmdCheckProtect);
 
 	if (!HookFunction(&(PVOID&)oPresent, dPresent, "D3D_PRESENT_FUNCTION")) return;
 
@@ -271,6 +280,7 @@ void DetourUninitialization()
 	UNHOOKFUNC(AmongUsClient_OnGameJoined);
 	UNHOOKFUNC(PlayerControl_OnGameStart);
 	UNHOOKFUNC(AmongUsClient_OnPlayerLeft);
+	UNHOOKFUNC(AmongUsClient_OnPlayerJoined);
 	UNHOOKFUNC(CustomNetworkTransform_SnapTo);
 	UNHOOKFUNC(LobbyBehaviour_Start);
 	//UNHOOKFUNC(NoShadowBehaviour_LateUpdate);
@@ -289,7 +299,7 @@ void DetourUninitialization()
 	UNHOOKFUNC(EOSManager_IsFriendsListAllowed);
 	UNHOOKFUNC(ChatController_Update);
 	UNHOOKFUNC(TextBoxTMP_IsCharAllowed);
-	HOOKFUNC(TextBoxTMP_SetText);
+	UNHOOKFUNC(TextBoxTMP_SetText);
 	UNHOOKFUNC(ShipStatus_RpcUpdateSystem);
 	UNHOOKFUNC(ShipStatus_RpcCloseDoorsOfType);
 	UNHOOKFUNC(InnerNetClient_EnqueueDisconnect);
@@ -313,7 +323,7 @@ void DetourUninitialization()
 	UNHOOKFUNC(KillButton_SetTarget);
 	UNHOOKFUNC(ImpostorRole_FindClosestTarget);
 	UNHOOKFUNC(MushroomDoorSabotageMinigame_Begin);
-	//UNHOOKFUNC(AmongUsClient_CoStartGameHost); Unfinished [Luckyheat]
+	//UNHOOKFUNC(AmongUsClient_CoStartGameHost);
 	UNHOOKFUNC(Console_1_CanUse);
 	UNHOOKFUNC(Ladder_SetDestinationCooldown);
 	UNHOOKFUNC(ZiplineConsole_SetDestinationCooldown);
@@ -330,6 +340,14 @@ void DetourUninitialization()
 	UNHOOKFUNC(DisconnectPopup_DoShow);
 	UNHOOKFUNC(EditAccountUsername_SaveUsername);
 	UNHOOKFUNC(GameManager_DidImpostorsWin);
+	UNHOOKFUNC(ShipStatus_HandleRpc);
+	UNHOOKFUNC(ExileController_BeginForGameplay);
+	UNHOOKFUNC(ChatBubble_SetText);
+	UNHOOKFUNC(PlayerControl_CmdCheckVanish);
+	UNHOOKFUNC(PlayerControl_CmdCheckAppear);
+	UNHOOKFUNC(PlayerControl_SetRoleInvisibility);
+	UNHOOKFUNC(ShipStatus_UpdateSystem);
+	UNHOOKFUNC(PlayerControl_CmdCheckProtect);
 
 	if (DetourDetach(&(PVOID&)oPresent, dPresent) != 0) return;
 

@@ -5,10 +5,10 @@ void DetourUninitialization();
 
 bool dAutoOpenDoor_DoUpdate(AutoOpenDoor* __this, float dt, MethodInfo* method);
 void dInnerNetClient_Update(InnerNetClient* __this, MethodInfo* method);
-void dInnerNetClient_UpdateTime(InnerNetClient* __this, MethodInfo* method);
 void dAmongUsClient_OnGameJoined(AmongUsClient* __this, String* gameIdString, MethodInfo* method);
 void dPlayerControl_OnGameStart(PlayerControl* __this, MethodInfo* method);
 void dAmongUsClient_OnPlayerLeft(AmongUsClient* __this, ClientData* data, DisconnectReasons__Enum reason, MethodInfo* method);
+void dAmongUsClient_OnPlayerJoined(AmongUsClient* __this, ClientData* data, MethodInfo* method);
 void dCustomNetworkTransform_SnapTo(CustomNetworkTransform* __this, Vector2 position, uint16_t minSid, MethodInfo* method);
 bool dStatsManager_get_AmBanned(StatsManager* __this, MethodInfo* method);
 float dShipStatus_CalculateLightRadius(ShipStatus* __this, NetworkedPlayerInfo* player, MethodInfo* method);
@@ -102,7 +102,7 @@ void dKillOverlay_ShowKillAnimation_1(KillOverlay* __this, NetworkedPlayerInfo* 
 void dKillButton_SetTarget(KillButton* __this, PlayerControl* target, MethodInfo* method);
 PlayerControl* dImpostorRole_FindClosestTarget(ImpostorRole* __this, MethodInfo* method);
 void dMushroomDoorSabotageMinigame_Begin(MushroomDoorSabotageMinigame* __this, PlayerTask* task, MethodInfo* method);
-void* dAmongUsClient_CoStartGameHost(AmongUsClient* __this, MethodInfo* method);
+//void* dAmongUsClient_CoStartGameHost(AmongUsClient* __this, MethodInfo* method);
 float dConsole_1_CanUse(Console_1* __this, NetworkedPlayerInfo* pc, bool* canUse, bool* couldUse, MethodInfo* method);
 void dLadder_SetDestinationCooldown(Ladder* __this, MethodInfo* method);
 void dZiplineConsole_SetDestinationCooldown(ZiplineConsole* __this, MethodInfo* method);
@@ -119,3 +119,11 @@ void dNetworkedPlayerInfo_Serialize(NetworkedPlayerInfo* __this, MessageWriter* 
 void dDisconnectPopup_DoShow(DisconnectPopup* __this, MethodInfo* method);
 void dEditAccountUsername_SaveUsername(EditAccountUsername* __this, MethodInfo* method);
 bool dGameManager_DidImpostorsWin(GameManager* __this, GameOverReason__Enum reason, MethodInfo* method);
+void dShipStatus_HandleRpc(ShipStatus* __this, uint8_t callId, MessageReader* reader, MethodInfo* method);
+void dExileController_BeginForGameplay(ExileController* __this, NetworkedPlayerInfo* exiled, bool voteTie, MethodInfo* method);
+void dChatBubble_SetText(ChatBubble* __this, String* chatText, MethodInfo* method);
+void dPlayerControl_CmdCheckVanish(PlayerControl* __this, float maxDuration, MethodInfo* method);
+void dPlayerControl_CmdCheckAppear(PlayerControl* __this, bool shouldAnimate, MethodInfo* method);
+void dPlayerControl_SetRoleInvisibility(PlayerControl* __this, bool isActive, bool shouldAnimate, bool playFullAnimation, MethodInfo* method);
+void dShipStatus_UpdateSystem(ShipStatus* __this, SystemTypes__Enum systemType, PlayerControl* player, uint8_t amount, MethodInfo* method);
+void dPlayerControl_CmdCheckProtect(PlayerControl* __this, PlayerControl* target, MethodInfo* method);

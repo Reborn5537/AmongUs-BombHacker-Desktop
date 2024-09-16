@@ -6,6 +6,7 @@
 
 void dFungleShipStatus_OnEnable(FungleShipStatus* __this, MethodInfo* method)
 {
+	if (State.ShowHookLogs) LOG_DEBUG("Hook dFungleShipStatus_OnEnable executed");
 	FungleShipStatus_OnEnable(__this, method);
 
 	try {
@@ -26,8 +27,6 @@ void dFungleShipStatus_OnEnable(FungleShipStatus* __this, MethodInfo* method)
 		}
 
 		std::sort(State.mapDoors.begin(), State.mapDoors.end());
-
-		State.mapType = Settings::MapType::Fungle;
 
 		if (!State.PanicMode && State.confuser && State.confuseOnStart)
 			ControlAppearance(true);

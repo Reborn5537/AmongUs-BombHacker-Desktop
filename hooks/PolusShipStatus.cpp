@@ -8,6 +8,7 @@
 
 void dPolusShipStatus_OnEnable(PolusShipStatus* __this, MethodInfo* method)
 {
+	if (State.ShowHookLogs) LOG_DEBUG("Hook dPolusShipStatus_OnEnable executed");
 	try {
 
 		Replay::Reset();
@@ -27,8 +28,6 @@ void dPolusShipStatus_OnEnable(PolusShipStatus* __this, MethodInfo* method)
 		}
 
 		std::sort(State.mapDoors.begin(), State.mapDoors.end());
-
-		State.mapType = Settings::MapType::Pb;
 
 		if (!State.PanicMode && State.confuser && State.confuseOnStart)
 			ControlAppearance(true);

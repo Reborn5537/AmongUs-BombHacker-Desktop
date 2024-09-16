@@ -4,11 +4,16 @@
 #include "esp.hpp"
 #include <iostream>
 
+static float camHeight = 3.f;
+static bool refreshChat = true;
+
 Vector3 dCamera_ScreenToWorldPoint(Camera* __this, Vector3 position, MethodInfo* method)
 {
+	if (State.ShowHookLogs) LOG_DEBUG("Hook dCamera_ScreenToWorldPoint executed");
 	try {
-		if (!State.PanicMode && State.EnableZoom)
-		{	//Figured it is better to restore the current camera height than using state
+		if (!State.PanicMode && (State.GameLoaded || IsInLobby()))
+		{
+			//Figured it is better to restore the current camera height than using state
 			float orthographicSize = Camera_get_orthographicSize(__this, NULL);
 			Camera_set_orthographicSize(__this, 3.0f, NULL);
 			Vector3 ret = Camera_ScreenToWorldPoint(__this, position, method);
@@ -24,6 +29,7 @@ Vector3 dCamera_ScreenToWorldPoint(Camera* __this, Vector3 position, MethodInfo*
 }
 
 void dFollowerCamera_Update(FollowerCamera* __this, MethodInfo* method) {
+	if (State.ShowHookLogs) LOG_DEBUG("Hook dFollowerCamera_Update executed");
 	try {
 		if (!State.PanicMode) {
 			if (auto playerToFollow = State.playerToFollow.validate(); playerToFollow.has_value())
