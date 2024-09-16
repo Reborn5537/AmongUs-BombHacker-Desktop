@@ -42,7 +42,8 @@ namespace DebugTab {
 
 		ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
 
-		ToggleButton("Log Unity Debug Messages", &State.ShowUnityLogs);
+		if (ToggleButton("Log Unity Debug Messages", &State.ShowUnityLogs)) State.Save();
+		if (ToggleButton("Log Hook Debug Messages", &State.ShowHookLogs)) State.Save();
 
 		ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
 
@@ -111,6 +112,16 @@ namespace DebugTab {
 			// Profiler::WriteStatsToStream(statStream);
 
 			ImGui::TextUnformatted(statStream.str().c_str());
+		}
+
+		ImGui::Text(std::format("Active Scene: {}", State.CurrentScene).c_str());
+
+		if (ImGui::CollapsingHeader("Experiments##debug")) {
+			ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f), "These features are in development and can break at any time.");
+			ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f), "Use these at your own risk.");
+			if (ToggleButton("Enable Anticheat (SMAC)", &State.Enable_SMAC)) State.Save();
+			if (ToggleButton("Disable Host Anticheat (+25 Mode)", &State.DisableHostAnticheat)) State.Save();
+			if (ToggleButton("Point System (Only for Hosting)", &State.TournamentMode)) State.Save();
 		}
 
 		ImGui::EndChild();

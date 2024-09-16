@@ -11,7 +11,7 @@ namespace TasksTab {
 			ImGui::SameLine(100 * State.dpiScale);
 			ImGui::BeginChild("###Tasks", ImVec2(500 * State.dpiScale, 0), true, ImGuiWindowFlags_NoBackground);
 			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-			//if (!PlayerIsImpostor(GetPlayerData(*Game::pLocalPlayer))) {
+			if (!PlayerIsImpostor(GetPlayerData(*Game::pLocalPlayer))) {
 			auto tasks = GetNormalPlayerTasks(*Game::pLocalPlayer);
 
 			bool allTasksComplete = false;
@@ -60,7 +60,7 @@ namespace TasksTab {
 			ImGui::Dummy(ImVec2(7, 7) * State.dpiScale);
 			ImGui::Separator();
 			ImGui::Dummy(ImVec2(7, 7) * State.dpiScale);
-			//}
+			}
 
 			GameOptions options;
 			if (options.GetGameMode() == GameModes__Enum::Normal && !options.GetBool(app::BoolOptionNames__Enum::VisualTasks)) {

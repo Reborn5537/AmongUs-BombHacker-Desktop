@@ -13,19 +13,16 @@ namespace SettingsTab {
 	enum Groups {
 		General,
 		Spoofing,
-		AntiCheat,
 		Keybinds
 	};
 
 	static bool openGeneral = true; //default to general tab group
 	static bool openSpoofing = false;
-	static bool openAntiCheat = false;
 	static bool openKeybinds = false;
 
 	void CloseOtherGroups(Groups group) {
 		openGeneral = group == Groups::General;
 		openSpoofing = group == Groups::Spoofing;
-		openAntiCheat = group == Groups::AntiCheat;
 		openKeybinds = group == Groups::Keybinds;
 	}
 
@@ -38,10 +35,6 @@ namespace SettingsTab {
 		ImGui::SameLine();
 		if (TabGroup("Spoofing", openSpoofing)) {
 			CloseOtherGroups(Groups::Spoofing);
-		}
-		ImGui::SameLine();
-		if (TabGroup("AntiCheat", openAntiCheat)) {
-			CloseOtherGroups(Groups::AntiCheat);
 		}
 		ImGui::SameLine();
 		if (TabGroup("Keybinds", openKeybinds)) {
@@ -65,6 +58,56 @@ namespace SettingsTab {
 			ImGui::Dummy(ImVec2(7, 7) * State.dpiScale);
 			ImGui::Separator();
 			ImGui::Dummy(ImVec2(7, 7) * State.dpiScale);
+			
+			// sorry to anyone trying to read this code it is pretty messy
+#pragma region New config menu, needs fixing
+			/*
+			std::vector<std::string> CONFIGS = GetAllConfigs();
+			CONFIGS.push_back("[New]");
+			CONFIGS.push_back("[Delete]");
+
+			std::vector<const char*> CONFIGS_CHAR;
+
+			for (const std::string& str : CONFIGS) {
+				char* ch = new char[str.size() + 1];
+				std::copy(str.begin(), str.end(), ch);
+				ch[str.size()] = '\0';
+				CONFIGS_CHAR.push_back(ch);
+			}
+
+			bool isNewConfig = CONFIGS.size() == 1;
+			bool isDelete = false;
+
+			int& selectedConfigInt = State.selectedConfigInt;
+			std::string selectedConfig = CONFIGS[selectedConfigInt];
+
+			if (CustomListBoxInt("Configs", &selectedConfigInt, CONFIGS_CHAR), 100 * State.dpiScale, ImVec4(0,0,0,0), ImGuiComboFlags_NoArrowButton) {
+				isNewConfig = selectedConfigInt == CONFIGS.size() - 2;
+				isDelete = selectedConfigInt == CONFIGS.size() - 1;
+				if (!isNewConfig && !isDelete) State.selectedConfig = CONFIGS[selectedConfigInt];
+				State.Save();
+				State.Load();
+			}
+
+			if (isNewConfig || isDelete) {
+				InputString("Name", &State.selectedConfig);
+				if (isNewConfig && (ImGui::Button(CheckConfigExists(State.selectedConfig) ? "Overwrite" : "Save"))) {
+					State.Save();
+					CONFIGS = GetAllConfigs();
+
+					selectedConfigInt = std::distance(CONFIGS.begin(), std::find(CONFIGS.begin(), CONFIGS.end(), State.selectedConfig));
+				}
+
+				if (isDelete && CheckConfigExists(State.selectedConfig)) {
+					if (ImGui::Button("Delete")) {
+						selectedConfigInt--;
+						State.Delete();
+						CONFIGS = GetAllConfigs();
+						if (selectedConfigInt < 0) selectedConfigInt = 0;
+					}
+				}
+			}*/
+#pragma endregion
 
 			InputString("Config Name", &State.selectedConfig);
 
@@ -104,15 +147,33 @@ namespace SettingsTab {
 
 			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
 
-			if (ImGui::ColorEdit3("Menu Theme Color", (float*)&State.MenuThemeColor, ImGuiColorEditFlags__OptionsDefault | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview)) {
+			if (!State.GradientMenuTheme) {
+				if (ImGui::ColorEdit3("Menu Theme Color", (float*)&State.MenuThemeColor, ImGuiColorEditFlags__OptionsDefault | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview)) {
+					State.Save();
+				}
+			}
+			else {
+				if (ImGui::ColorEdit3("Gradient Color 1", (float*)&State.MenuGradientColor1, ImGuiColorEditFlags__OptionsDefault | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview)) {
+					State.Save();
+				}
+				ImGui::SameLine();
+				if (ImGui::ColorEdit3("Gradient Color 2", (float*)&State.MenuGradientColor2, ImGuiColorEditFlags__OptionsDefault | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview)) {
+					State.Save();
+				}
+			}
+			ImGui::SameLine();
+			if (ToggleButton("Gradient Theme", &State.GradientMenuTheme))
+				State.Save();
+
+			if (ToggleButton("Match Background with Theme", &State.MatchBackgroundWithTheme)) {
 				State.Save();
 			}
-
+			ImGui::SameLine();
 			if (ToggleButton("RGB Menu Theme", &State.RgbMenuTheme)) {
 				State.Save();
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Reset Menu Theme Color"))
+			if (ImGui::Button("Reset Menu Theme"))
 			{
 				State.MenuThemeColor = ImVec4(1.f, 0.f, 0.424f, 1.f);
 			}
@@ -180,17 +241,12 @@ namespace SettingsTab {
 				State.Save();
 			}
 
-
-			if (ToggleButton("Free Stars Exploit", &State.FreeStars)) State.Save(); {
-				ImGui::SameLine();
-				ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), ("Receive 1 000 000 Stars :D"));
-				State.Save();
-			}
-
-
-
 			if (ToggleButton("Safe Mode", &State.SafeMode)) {
 				State.Save();
+			}
+			ImGui::SameLine();
+			if (ToggleButton("Spoof Modded Host", &State.SpoofModdedHost)) {
+				State.Save(); //haven't figured this out yet
 			}
 			if (ToggleButton("Allow other BombHacker users to see you're using BombHacker", &State.SickoDetection)) {
 				State.Save();
@@ -206,7 +262,7 @@ namespace SettingsTab {
 			if (ToggleButton("Use Custom Guest Friend Code", &State.UseGuestFriendCode)) {
 				State.Save();
 			}
-
+			
 			if (InputString("Guest Friend Code", &State.GuestFriendCode)) {
 				State.Save();
 			}
@@ -221,190 +277,134 @@ namespace SettingsTab {
 			if (ImGui::InputInt("Level", &State.FakeLevel, 0, 1)) {
 				State.Save();
 			}
-
-
-			ImGui::Dummy(ImVec2(15, 15)* State.dpiScale);
-				if (ToggleButton("Spoof Platform", &State.SpoofPlatform)) {
-					State.Save();
-				}
-				ImGui::SameLine();
-				if (CustomListBoxInt("Platform", &State.FakePlatform, PLATFORMS))
-					State.Save();
-				ImGui::Dummy(ImVec2(15, 15) * State.dpiScale);
-				if (ToggleButton("Spoof Modded Host", &State.SpoofModdedHost)) State.Save();
-				ImGui::SameLine();
-				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), ("- Doesn't Work!"));
-				State.Save(); //haven't figured this out yet | Real, what is it? [@Luckyheat]
-
-
-				ImGui::Dummy(ImVec2(200, 200)* State.dpiScale);
-				if (ToggleButton("Spoof Product User ID", &State.SpoofPuid)) State.Save();
-				ImGui::SameLine();
-				ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), ("For Local / Practice Games")); //Online -> Patched T-T | I found another use for it!
-				if (InputString("PUID", &State.FakePuid)) State.Save(); {
-					State.Save();
-				}
-
-
-				ImGui::Dummy(ImVec2(20, 20) * State.dpiScale);
-				if (ToggleButton("Visual Friend Code", &State.SpoofFriendCode)) State.Save(); {
-					ImGui::SameLine();
-					ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), ("Other's Don't See Changes | Only You")); //Online -> Patched T-T | I found another use for it!
-					State.Save();
-				}
-				if (InputString("Fake Friend Code", &State.FakeFriendCode)) {
-					State.Save();
-				}
+			if (ToggleButton("Spoof Platform", &State.SpoofPlatform)) {
+				State.Save();
 			}
+			ImGui::SameLine();
+			if (CustomListBoxInt("Platform", &State.FakePlatform, PLATFORMS))
+				State.Save();
 
-
-			if (openAntiCheat) {
-				if (ToggleButton("Disable Host Anticheat", &State.DisableHostAnticheat)) State.Save();
-				ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), ("It works when the server is restarted for the second time\n [+25 mode]"));
-
-
-				ImGui::Dummy(ImVec2(15, 15) * State.dpiScale);
-				if (ToggleButton("Enable AntiCheat (SMAC)", &State.EnableSickoAntiCheat)) State.Save();
-				ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), ("Coming in 4.0!"));
-				if (State.DisableHostAnticheat) ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), ("Note: You should turn off \"Disable Host AntiCheat\""));
-
-
-			}
-
-			if (openKeybinds) {
-				if (HotKey(State.KeyBinds.Toggle_Menu)) {
-					State.Save();
-				}
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Show/Hide Menu");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_Console)) {
-					State.Save();
-				}
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Show/Hide Console");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_Radar))
-					State.Save();
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Show/Hide Radar");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_Replay))
-					State.Save();
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Show/Hide Replay");
-
-				ImGui::Dummy(ImVec2(4, 4)* State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_ChatAlwaysActive)) {
-					State.Save();
-				}
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Show/Hide Chat");
-				
-				ImGui::Dummy(ImVec2(4, 4)* State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_ReadGhostMessages)) {
-					State.Save();
-				}
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Read Ghost Messages");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_Sicko))
-					State.Save();
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Panic Mode");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_Hud))
-					State.Save();
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Enable/Disable HUD");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_Freecam)) {
-					State.Save();
-				}
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Freecam");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_Zoom))
-					State.Save();
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Zoom");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_Noclip))
-					State.Save();
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("NoClip");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Toggle_Autokill))
-					State.Save();
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Autokill");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Reset_Appearance))
-					State.Save();
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Reset Appearance");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Randomize_Appearance))
-					State.Save();
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Confuse Now");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Repair_Sabotage)) {
-					State.Save();
-				}
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Repair All Sabotages");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Close_All_Doors)) {
-					State.Save();
-				}
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Close All Doors");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Close_Current_Room_Door)) {
-					State.Save();
-				}
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Close Current Room Door");
-
-				ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
-
-				if (HotKey(State.KeyBinds.Complete_Tasks)) {
-					State.Save();
-				}
-				ImGui::SameLine(100 * State.dpiScale);
-				ImGui::Text("Complete All Tasks");
-			}
-			ImGui::EndChild();
+			if (ToggleButton("Disable Host Anticheat", &State.DisableHostAnticheat)) State.Save();
 		}
+
+		if (openKeybinds) {
+			if (HotKey(State.KeyBinds.Toggle_Menu)) {
+				State.Save();
+			}
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Show/Hide Menu");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Toggle_Console)) {
+				State.Save();
+			}
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Show/Hide Console");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Toggle_Radar))
+				State.Save();
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Show/Hide Radar");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Toggle_Replay))
+				State.Save();
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Show/Hide Replay");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Toggle_Sicko))
+				State.Save();
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Panic Mode");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Toggle_Hud))
+				State.Save();
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Enable/Disable HUD");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Toggle_Freecam)) {
+				State.Save();
+			}
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Freecam");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Toggle_Zoom))
+				State.Save();
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Zoom");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Toggle_Noclip))
+				State.Save();
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("NoClip");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Toggle_Autokill))
+				State.Save();
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Autokill");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Reset_Appearance))
+				State.Save();
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Reset Appearance");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Randomize_Appearance))
+				State.Save();
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Confuse Now");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Repair_Sabotage)) {
+				State.Save();
+			}
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Repair All Sabotages");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Close_All_Doors)) {
+				State.Save();
+			}
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Close All Doors");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Close_Current_Room_Door)) {
+				State.Save();
+			}
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Close Current Room Door");
+
+			ImGui::Dummy(ImVec2(4, 4) * State.dpiScale);
+
+			if (HotKey(State.KeyBinds.Complete_Tasks)) {
+				State.Save();
+			}
+			ImGui::SameLine(100 * State.dpiScale);
+			ImGui::Text("Complete All Tasks");
+		}
+		ImGui::EndChild();
 	}
+}

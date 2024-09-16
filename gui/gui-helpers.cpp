@@ -397,7 +397,7 @@ void drawPlayerIcon(PlayerControl* player, const ImVec2& winPos, ImU32 color)
 		p_min, p_max,
 		ImVec2(0.0f, 1.0f),
 		ImVec2(1.0f, 0.0f),
-		(/*State.RadarVisorRoleColor && */State.RevealRoles) ?
+		(State.RadarVisorRoleColor && State.RevealRoles) ?
 		GetColorU32(AmongUsColorToImVec4(GetRoleColor(GetPlayerData(player)->fields.Role))) : 
 		GetColorU32(AmongUsColorToImVec4(Palette__TypeInfo->static_fields->VisorColor)));
 
@@ -538,7 +538,11 @@ bool ToggleButton(const char* str_id, bool* v)
 
 bool TabGroup(const char* label, bool highlight)
 {
-	auto vec = State.RgbMenuTheme ? State.RgbColor : State.MenuThemeColor;
+	static ImVec4 vec = State.MenuThemeColor;
+	if (State.RgbMenuTheme)
+		vec = State.RgbColor;
+	else
+		vec = State.GradientMenuTheme ? State.MenuGradientColor : State.MenuThemeColor;
 	auto defaultCol = ImVec4((float)(vec.x / 1.25), (float)(vec.y / 1.25), (float)(vec.z / 1.25), 0.76f * State.MenuThemeColor.w);
 	auto hoveredCol = ImVec4((float)(vec.x / 1.25), (float)(vec.y / 1.25), (float)(vec.z / 1.25), 0.86f * State.MenuThemeColor.w);
 	auto activeCol = ImVec4((float)(vec.x / 1.25), (float)(vec.y / 1.25), (float)(vec.z / 1.25), 1.0f * State.MenuThemeColor.w);

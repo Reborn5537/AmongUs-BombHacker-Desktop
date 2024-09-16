@@ -1,4 +1,4 @@
-﻿#include "pch-il2cpp.h"
+#include "pch-il2cpp.h"
 #include "players_tab.h"
 #include "game.h"
 #include "state.hpp"
@@ -13,26 +13,27 @@ namespace PlayersTab {
 	enum Groups {
 		Player,
 		Trolling,
-		PUID,
 	};
 
 	static bool openPlayer = true; //default to visual tab group
 	static bool openTrolling = false;
-	static bool openPUID = false;
 
 	void CloseOtherGroups(Groups group) {
 		openPlayer = group == Groups::Player;
 		openTrolling = group == Groups::Trolling;
-		openPUID = group == Groups::PUID;
 	}
 
 	static bool murderLoop = false;
 	static bool suicideLoop = false;
+	static int murderCount = 0;
+	static int murderDelay = 0;
+	static int suicideCount = 0;
+	static int suicideDelay = 0;
 
 	void Render() {
 		if (IsInGame() || IsInLobby()) {
 			ImGui::SameLine(100 * State.dpiScale);
-			ImGui::BeginChild("players#list", ImVec2(220, 0) * State.dpiScale, true, ImGuiWindowFlags_NoBackground);
+			ImGui::BeginChild("players#list", ImVec2(200, 0) * State.dpiScale, true, ImGuiWindowFlags_NoBackground);
 			auto selectedPlayer = State.selectedPlayer.validate();
 			bool shouldEndListBox = ImGui::ListBoxHeader("###players#list", ImVec2(200, 230) * State.dpiScale);
 			auto localData = GetPlayerData(*Game::pLocalPlayer);
@@ -58,6 +59,15 @@ namespace PlayersTab {
 					bool isShifted = ImGui::IsKeyPressed(VK_SHIFT) || ImGui::IsKeyDown(VK_SHIFT);
 					bool isCtrl = ImGui::IsKeyDown(0x11) || ImGui::IsKeyDown(0xA2) || ImGui::IsKeyDown(0xA3);
 					if (isCtrl) {
+						if (isShifted && ImGui::IsKeyDown(0x41)) {
+							State.selectedPlayers = {};
+						}
+						else if (ImGui::IsKeyDown(0x41)) {
+							State.selectedPlayers = {};
+							for (auto p : GetAllPlayerControl()) {
+								State.selectedPlayers.push_back(p->fields.PlayerId);
+							}
+						}
 						auto it = std::find(State.selectedPlayers.begin(), State.selectedPlayers.end(), player.get_PlayerId());
 						if (it != State.selectedPlayers.end()) {
 							State.selectedPlayers.erase(it);
@@ -98,19 +108,15 @@ namespace PlayersTab {
 				}
 				else if (PlayerIsImpostor(localData) && PlayerIsImpostor(playerData))
 					nameColor = AmongUsColorToImVec4(Palette__TypeInfo->static_fields->ImpostorRed);
-				else if (std::count(State.sickoUsers.begin(), State.sickoUsers.end(), playerData->fields.PlayerId))
-					nameColor = AmongUsColorToImVec4(Palette__TypeInfo->static_fields->AcceptedGreen);
+				else if (playerCtrl == *Game::pLocalPlayer || State.modUsers.find(playerData->fields.PlayerId) != State.modUsers.end()) {
+					if (playerCtrl == *Game::pLocalPlayer || State.modUsers.at(playerData->fields.PlayerId) == "<#0f0>Bomb</color><#f00>Hacker</color>")
+						nameColor = AmongUsColorToImVec4(Palette__TypeInfo->static_fields->AcceptedGreen);
+					else
+						nameColor = AmongUsColorToImVec4(Palette__TypeInfo->static_fields->Orange);
+				}
 
 				if (playerData->fields.IsDead)
 					nameColor = AmongUsColorToImVec4(Palette__TypeInfo->static_fields->DisabledGrey);
-
-				if (State.Friends.contains(convert_from_string(playerData->fields.Puid))) {
-					playerName += " [Friend]";
-				}
-
-				if (State.Blocked.contains(convert_from_string(playerData->fields.Puid))) {
-					playerName += " [Blocked]";
-				}
 
 				ImGui::TextColored(nameColor, playerName.c_str());
 			}
@@ -119,26 +125,29 @@ namespace PlayersTab {
 
 			if (selectedPlayer.has_value() && selectedPlayers.size() == 1) //Upon first startup no player is selected.  Also rare case where the playerdata is deleted before the next gui cycle
 			{
-				ImGui::Text("Is using SickoMenu: %s", selectedPlayer.is_LocalPlayer() || std::count(State.sickoUsers.begin(), State.sickoUsers.end(), selectedPlayer.get_PlayerData()->fields.PlayerId) ? "Yes" : "No");
-				ImGui::Text("Is using AUM: %s", std::count(State.aumUsers.begin(), State.aumUsers.end(), selectedPlayer.get_PlayerData()->fields.PlayerId) ? "Yes" : "No");
-				std::uint8_t playerId = selectedPlayer.get_PlayerData()->fields.PlayerId;
-				std::string playerIdText = std::format("Player ID: {}", playerId);
-				ImGui::Text(const_cast<char*>(playerIdText.c_str()));
-				std::string friendCode = convert_from_string(selectedPlayer.get_PlayerData()->fields.FriendCode);
-				std::string friendCodeText = std::format("Friend Code: {}", (!IsStreamerMode()) ? friendCode : ((friendCode != "") ? friendCode.substr(0, 1) + "..." : ""));
-				if (friendCode != "") {
-					ImGui::Text(const_cast<char*>(friendCodeText.c_str()));
-				}
-				std::string puid = convert_from_string(selectedPlayer.get_PlayerData()->fields.Puid);
-			    std::string puidText = std::format("PUID:\n{}", (!IsStreamerMode()) ? puid : ((puid != "") ? puid.substr(0, 1) + "..." : ""));
-				if (puid != "") {
-					ImGui::Text(const_cast<char*>(puidText.c_str()));
-				}
-				uint32_t playerLevel = selectedPlayer.get_PlayerData()->fields.PlayerLevel + 1;
-				std::string levelText = std::format("Level: {}", playerLevel);
-				ImGui::Text(const_cast<char*>(levelText.c_str()));
-				std::string platform = "Unknown";
-				for (auto client : GetAllClients()) {
+				if ((IsInMultiplayerGame() || IsInLobby()) || (selectedPlayer.has_value() && selectedPlayer.is_LocalPlayer())) {
+					bool isUsingMod = selectedPlayer.is_LocalPlayer() || State.modUsers.find(selectedPlayer.get_PlayerData()->fields.PlayerId) != State.modUsers.end();
+					ImGui::Text("Is using Modified Client: %s", isUsingMod ? "Yes" : "No");
+					if (isUsingMod)
+						ImGui::Text("Client Name: %s", selectedPlayer.is_LocalPlayer() ? "BombHacker" : RemoveHtmlTags(State.modUsers.at(selectedPlayer.get_PlayerData()->fields.PlayerId)).c_str());
+					std::uint8_t playerId = selectedPlayer.get_PlayerData()->fields.PlayerId;
+					std::string playerIdText = std::format("Player ID: {}", playerId);
+					ImGui::Text(const_cast<char*>(playerIdText.c_str()));
+					std::string friendCode = convert_from_string(selectedPlayer.get_PlayerData()->fields.FriendCode);
+					std::string friendCodeText = std::format("Friend Code: {}", (!IsStreamerMode()) ? friendCode : ((friendCode != "") ? friendCode.substr(0, 1) + "..." : ""));
+					if (friendCode != "") {
+						ImGui::Text(const_cast<char*>(friendCodeText.c_str()));
+					}
+					std::string puid = convert_from_string(selectedPlayer.get_PlayerData()->fields.Puid);
+					std::string puidText = std::format("PUID:\n{}", (!IsStreamerMode()) ? puid : ((puid != "") ? puid.substr(0, 1) + "..." : ""));
+					if (puid != "") {
+						ImGui::Text(const_cast<char*>(puidText.c_str()));
+					}
+					uint32_t playerLevel = selectedPlayer.get_PlayerData()->fields.PlayerLevel + 1;
+					std::string levelText = std::format("Level: {}", playerLevel);
+					ImGui::Text(const_cast<char*>(levelText.c_str()));
+					std::string platform = "Unknown";
+					auto client = app::InnerNetClient_GetClientFromCharacter((InnerNetClient*)(*Game::pAmongUsClient), selectedPlayer.get_PlayerControl(), NULL);
 					if (GetPlayerControlById(selectedPlayer.get_PlayerData()->fields.PlayerId)->fields._.OwnerId == client->fields.Id) {
 						switch (client->fields.PlatformData->fields.Platform) {
 						case Platforms__Enum::StandaloneEpicPC:
@@ -175,12 +184,26 @@ namespace PlayersTab {
 							platform = "Unknown";
 							break;
 						}
-						break;
 					}
+					std::string platformText = std::format("Platform: {}", platform);
+					ImGui::Text(platformText.c_str());
+					uint64_t psnId = client->fields.PlatformData->fields.PsnPlatformId;
+					std::string psnText = std::format("PSN Platform ID: {}", psnId);
+					if (psnId != 0) ImGui::Text(const_cast<char*>(psnText.c_str()));
+					uint64_t xboxId = client->fields.PlatformData->fields.XboxPlatformId;
+					std::string xboxText = std::format("Xbox Platform ID: {}", xboxId);
+					if (xboxId != 0) ImGui::Text(const_cast<char*>(xboxText.c_str()));
 				}
-				std::string platformText = std::format("Platform: {}", platform);
-				ImGui::Text(platformText.c_str());
+				else {
+					ImGui::Text("Is using Modified Client: No");
+					std::uint8_t playerId = selectedPlayer.get_PlayerData()->fields.PlayerId;
+					std::string playerIdText = std::format("Player ID: {}", playerId);
+					ImGui::Text(const_cast<char*>(playerIdText.c_str()));
+					uint32_t playerLevel = selectedPlayer.get_PlayerData()->fields.PlayerLevel + 1;
+					std::string levelText = std::format("Level: {}", playerLevel);
+					ImGui::Text(const_cast<char*>(levelText.c_str()));
 				}
+			}
 
 			ImGui::EndChild();
 			ImGui::SameLine();
@@ -193,12 +216,7 @@ namespace PlayersTab {
 				if (TabGroup("Trolling", openTrolling)) {
 					CloseOtherGroups(Groups::Trolling);
 				}
-				ImGui::SameLine();
-				if (TabGroup("PUID", openPUID)) {
-					CloseOtherGroups(Groups::PUID);
-				}
 			}
-
 			if (State.DisableMeetings && IsHost())
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Meetings have been disabled.");
 			GameOptions options;
@@ -216,14 +234,12 @@ namespace PlayersTab {
 					}
 				}
 			}
-			ImGui::Dummy(ImVec2(3, 3) * State.dpiScale);
-			ImGui::Separator();
 			if ((!selectedPlayer.has_value() || selectedPlayer.is_LocalPlayer()) || !State.SafeMode) {
 				if ((IsHost() || !State.SafeMode) && State.InMeeting && ImGui::Button("Skip Vote by All")) {
 					for (auto player : GetAllPlayerControl()) {
-						/*if (player != selectedPlayer.get_PlayerControl()) {
+						if (player != selectedPlayer.get_PlayerControl()) {
 							State.rpcQueue.push(new RpcClearVote(player));
-						}*/
+						}
 						State.rpcQueue.push(new RpcVotePlayer(player, player, true));
 					}
 					State.InMeeting = false;
@@ -244,6 +260,7 @@ namespace PlayersTab {
 						}
 					}
 				}
+
 				if (!selectedPlayer.is_Disconnected() && selectedPlayers.size() == 1)
 				{
 					if (State.playerToFollow.equals(State.selectedPlayer) || (selectedPlayer.is_LocalPlayer() && selectedPlayer.has_value())) {
@@ -259,9 +276,7 @@ namespace PlayersTab {
 					}
 				}
 
-
-
-				/*if (IsInGame() && PlayerIsImpostor(GetPlayerData(*Game::pLocalPlayer))
+				if (IsInGame() && PlayerIsImpostor(GetPlayerData(*Game::pLocalPlayer))
 					&& !selectedPlayer.get_PlayerData()->fields.IsDead
 					&& !selectedPlayer.get_PlayerControl()->fields.inVent
 					&& !selectedPlayer.get_PlayerControl()->fields.inMovingPlat
@@ -274,23 +289,23 @@ namespace PlayersTab {
 						State.rpcQueue.push(new CmdCheckMurder(State.selectedPlayer));
 					}
 				}
-				else {// if (!State.SafeMode)*/
-				if ((IsHost() || !State.SafeMode) && ImGui::Button("Kill"))
-				{
-					for (PlayerSelection p : selectedPlayers) {
-						auto validPlayer = p.validate();
-						if (IsInGame()) {
-							State.rpcQueue.push(new RpcMurderPlayer(*Game::pLocalPlayer, validPlayer.get_PlayerControl(),
-								validPlayer.get_PlayerControl()->fields.protectedByGuardianId < 0 || State.BypassAngelProt));
-						}
-						else if (IsInLobby()) {
-							State.lobbyRpcQueue.push(new RpcMurderPlayer((*Game::pLocalPlayer), validPlayer.get_PlayerControl(),
-								validPlayer.get_PlayerControl()->fields.protectedByGuardianId < 0 || State.BypassAngelProt));
+				else if (IsInGame() || IsInLobby()) {
+					if ((IsInGame() || (IsInLobby())) && ImGui::Button("Kill"))
+					{
+						for (PlayerSelection p : selectedPlayers) {
+							auto validPlayer = p.validate();
+							if (IsInGame()) {
+								State.rpcQueue.push(new RpcMurderPlayer(*Game::pLocalPlayer, validPlayer.get_PlayerControl(),
+									validPlayer.get_PlayerControl()->fields.protectedByGuardianId < 0 || State.BypassAngelProt));
+							}
+							else if (IsInLobby()) {
+								State.lobbyRpcQueue.push(new RpcMurderPlayer((*Game::pLocalPlayer), validPlayer.get_PlayerControl(),
+									validPlayer.get_PlayerControl()->fields.protectedByGuardianId < 0 || State.BypassAngelProt));
+							}
 						}
 					}
 				}
-				//}
-				if ((IsInGame() || IsInLobby()) && PlayerIsImpostor(GetPlayerData(*Game::pLocalPlayer))
+				if ((IsInGame() || (IsInLobby())) && PlayerIsImpostor(GetPlayerData(*Game::pLocalPlayer))
 					&& !selectedPlayer.get_PlayerData()->fields.IsDead
 					&& !selectedPlayer.get_PlayerControl()->fields.inVent
 					&& !selectedPlayer.get_PlayerControl()->fields.inMovingPlat
@@ -307,7 +322,7 @@ namespace PlayersTab {
 						framesPassed = 40;
 					}
 				}
-				else if ((IsHost() || !State.SafeMode)) {// if (!State.SafeMode)
+				else if ((IsInGame() || (IsInLobby()))) {
 					ImGui::SameLine();
 					if (ImGui::Button("Telekill"))
 					{
@@ -334,15 +349,6 @@ namespace PlayersTab {
 								app::InnerNetClient_KickPlayer((InnerNetClient*)(*Game::pAmongUsClient), p.validate().get_PlayerControl()->fields._.OwnerId, false, NULL);
 						}
 					}
-					ImGui::SameLine();
-					ImGui::Dummy(ImVec2(10, 10)* State.dpiScale);
-					if (IsHost()) ImGui::SameLine();
-					if (IsHost() && ImGui::Button("Ban")) {
-						for (auto p : selectedPlayers) {
-							if (p.has_value() && p.validate().is_LocalPlayer()) continue;
-							app::InnerNetClient_KickPlayer((InnerNetClient*)(*Game::pAmongUsClient), p.validate().get_PlayerControl()->fields._.OwnerId, true, NULL);
-						}
-					}
 					if (ImGui::Button("Votekick")) {
 						for (auto p : selectedPlayers) {
 							if (p.has_value() && p.validate().is_LocalPlayer()) continue;
@@ -354,7 +360,7 @@ namespace PlayersTab {
 							}
 						}
 					}
-					if (!State.SafeMode) {
+					if (IsInGame() || IsInLobby()) {
 						if (ImGui::Button("Kick Exploit")) {
 							for (auto p : selectedPlayers) {
 								if (p.has_value() && p.validate().is_LocalPlayer()) continue;
@@ -367,36 +373,34 @@ namespace PlayersTab {
 							}
 						}
 					}
-					else if ((IsHost() && IsInGame || !State.SafeMode)) {
-						ImGui::Dummy(ImVec2(5, 5) * State.dpiScale); State.Save();
-						ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), ("Alt name for Attempt to Ban"));
-						if (ImGui::Button("Error Exit"))
-						 {
+					else if (IsInGame() || IsInLobby()) {
+						if (ImGui::Button("Attempt to Ban")) {
 							for (auto p : selectedPlayers) {
 								if (p.has_value() && p.validate().is_LocalPlayer()) continue;
-								State.rpcQueue.push(new RpcMurderLoop(*Game::pLocalPlayer, p.validate().get_PlayerControl(), 20, true));
+								State.rpcQueue.push(new RpcMurderLoop(*Game::pLocalPlayer, p.validate().get_PlayerControl(), 200, true));
 							}
 						}
 					}
-					if ((IsHost() && IsInGame || !State.SafeMode)) {
-						ImGui::Dummy(ImVec2(5, 5) * State.dpiScale); State.Save();
-						ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), ("It can cause lags even on powerful computers!"));
-						if (ImGui::Button("Crash Player"))
-						{
-							for (auto p : selectedPlayers) {
-								if (p.has_value() && p.validate().is_LocalPlayer()) continue;
-								State.rpcQueue.push(new RpcMurderLoop(*Game::pLocalPlayer, p.validate().get_PlayerControl(), 40000, true));
-							}
+					
+					if (IsHost() && ImGui::Button("Ban")) {
+						for (auto p : selectedPlayers) {
+							if (p.has_value() && p.validate().is_LocalPlayer()) continue;
+							app::InnerNetClient_KickPlayer((InnerNetClient*)(*Game::pAmongUsClient), p.validate().get_PlayerControl()->fields._.OwnerId, true, NULL);
 						}
 					}
-					ImGui::Dummy(ImVec2(10, 10) * State.dpiScale); State.Save();
-					if (selectedPlayers.size() == 1 && ImGui::Button("Toggle Friend"))
+					/*if (selectedPlayers.size() == 1 && ImGui::Button("Toggle Friend"))
 					{
 						auto p = selectedPlayers[0];
 						if (p.has_value() && !p.validate().is_LocalPlayer()) {
 							std::string puid = convert_from_string(selectedPlayer.get_PlayerData()->fields.Puid);
-							if (State.Friends.contains(puid)) State.Friends.erase(puid);
-							else State.Friends.insert(puid);
+							if (State.Friends.contains(puid)) {
+								State.Friends.erase(puid);
+								State.InGameFriends.erase(selectedPlayer.get_PlayerData()->fields.PlayerId);
+							}
+							else {
+								State.Friends.insert(puid);
+								State.InGameFriends.insert(selectedPlayer.get_PlayerData()->fields.PlayerId);
+							}
 						}
 						State.Save();
 					}
@@ -406,36 +410,19 @@ namespace PlayersTab {
 							if (p.has_value() && p.validate().is_LocalPlayer()) continue;
 
 							std::string puid = convert_from_string(p.get_PlayerData().value()->fields.Puid);
-							if (State.Friends.contains(puid)) State.Friends.erase(puid);
-							else State.Friends.insert(puid);
+							if (State.Friends.contains(puid)) {
+								State.Friends.erase(puid);
+								State.InGameFriends.erase(p.get_PlayerData().value()->fields.PlayerId);
+							}
+							else {
+								State.Friends.insert(puid);
+								State.InGameFriends.insert(p.get_PlayerData().value()->fields.PlayerId);
+							}
 						}
 						State.Save();
-					}
+					}*/
 				}
 
-				if (selectedPlayers.size() == 1 && ImGui::Button("Toggle Block"))
-				{
-					auto p = selectedPlayers[0];
-					if (p.has_value() && !p.validate().is_LocalPlayer()) {
-						std::string puid = convert_from_string(selectedPlayer.get_PlayerData()->fields.Puid);
-						if (State.Blocked.contains(puid)) State.Blocked.erase(puid);
-						else State.Blocked.insert(puid);
-					}
-					State.Save();
-				}
-				if (selectedPlayers.size() > 1 && ImGui::Button("Toggle Blocks")) //If you need lock player from cheat-spoofing guest acc
-				{
-					for (auto p : selectedPlayers) {
-						if (p.has_value() && p.validate().is_LocalPlayer()) continue;
-
-						std::string puid = convert_from_string(p.get_PlayerData().value()->fields.Puid);
-						if (State.Blocked.contains(puid)) State.Blocked.erase(puid);
-						else State.Blocked.insert(puid);
-					}
-					State.Save();
-				}
-
-				ImGui::Dummy(ImVec2(5, 5)* State.dpiScale);
 				if (framesPassed == 0)
 				{
 					if (IsInGame())
@@ -470,30 +457,16 @@ namespace PlayersTab {
 					}
 				}
 
-				/*if (!State.SafeMode)
-				{
-					if (selectedPlayers.size() == 1 && ImGui::Button("Vanish"))
-					{
+				if (State.RealRole == RoleTypes__Enum::GuardianAngel && role == RoleTypes__Enum::GuardianAngel) {
+					app::GuardianAngelRole* guardianAngelRole = (app::GuardianAngelRole*)playerRole;
+					if (selectedPlayers.size() == 1 && guardianAngelRole->fields.cooldownSecondsRemaining <= 0 && ImGui::Button("Protect")) {
 						if (IsInGame())
-							State.rpcQueue.push(new RpcVanish(*Game::pLocalPlayer, State.selectedPlayer, !State.AnimationlessVanish));
+							State.rpcQueue.push(new CmdCheckProtect(*Game::pLocalPlayer, State.selectedPlayer));
 						else if (IsInLobby())
-							State.lobbyRpcQueue.push(new RpcVanish(*Game::pLocalPlayer, State.selectedPlayer, !State.AnimationlessVanish));
+							State.lobbyRpcQueue.push(new CmdCheckProtect(*Game::pLocalPlayer, State.selectedPlayer));
 					}
 				}
-				else if (State.RealRole == RoleTypes__Enum::Phantom && role == RoleTypes__Enum::Phantom) {
-					app::PhantomRole* phantomRole = (app::PhantomRole*)playerRole;
-					if (selectedPlayers.size() == 1 && phantomRole->fields.cooldownSecondsRemaining <= 0 && ImGui::Button("Vanish"))       ---------------> Unfinished! [Luckyheat]
-					{
-						if (IsInGame())
-							State.rpcQueue.push(new CmdCheckVanish(*Game::pLocalPlayer, State.selectedPlayer, !State.AnimationlessVanish));
-						else if (IsInLobby())
-							State.lobbyRpcQueue.push(new CmdCheckVanish(*Game::pLocalPlayer, State.selectedPlayer, !State.AnimationlessVanish));
-					}
-				}*/
-
-				ImGui::Dummy(ImVec2(5, 5)* State.dpiScale);
-				if ((IsInGame() || IsInLobby()) || !State.SafeMode)
-				{
+				else {
 					if (ImGui::Button("Protect")) {
 						for (auto p : selectedPlayers) {
 							app::NetworkedPlayerInfo_PlayerOutfit* outfit = GetPlayerOutfit(p.validate().get_PlayerData());
@@ -503,15 +476,6 @@ namespace PlayersTab {
 							else if (IsInLobby())
 								State.lobbyRpcQueue.push(new RpcProtectPlayer(*Game::pLocalPlayer, p, colorId));
 						}
-					}
-				}
-				else if (State.RealRole == RoleTypes__Enum::GuardianAngel && role == RoleTypes__Enum::GuardianAngel) {
-					app::GuardianAngelRole* guardianAngelRole = (app::GuardianAngelRole*)playerRole;
-					if (selectedPlayers.size() == 1 && guardianAngelRole->fields.cooldownSecondsRemaining <= 0 && ImGui::Button("Protect")) {
-						if (IsInGame())
-							State.rpcQueue.push(new CmdCheckProtect(*Game::pLocalPlayer, State.selectedPlayer));
-						else if (IsInLobby())
-							State.lobbyRpcQueue.push(new CmdCheckProtect(*Game::pLocalPlayer, State.selectedPlayer));
 					}
 				}
 
@@ -546,7 +510,7 @@ namespace PlayersTab {
 							ImGui::Text("Tasks:");
 						}
 
-						bool shouldEndListBox = ImGui::ListBoxHeader("###tasks#list"/*, ImVec2(181, 94) * State.dpiScale*/);
+						bool shouldEndListBox = ImGui::ListBoxHeader("###tasks#list", ImVec2(181, 94) * State.dpiScale);
 
 						if (selectedPlayer.get_PlayerControl()->fields.myTasks == nullptr)
 						{
@@ -572,8 +536,8 @@ namespace PlayersTab {
 					}
 				}
 			}
+
 			if (openTrolling && selectedPlayer.has_value()) {
-				ImGui::Dummy(ImVec2(5, 5)* State.dpiScale);
 				if (IsInGame() && !GetPlayerData(selectedPlayer.get_PlayerControl())->fields.IsDead && selectedPlayers.size() == 1) {
 					if (!State.InMeeting) {
 						if (ImGui::Button("Force Meeting By")) {
@@ -640,7 +604,6 @@ namespace PlayersTab {
 								State.activeImpersonation = true;
 							}
 						}
-						ImGui::Dummy(ImVec2(5, 5)* State.dpiScale);
 						if (ImGui::CollapsingHeader("Cosmetics Stealer")) {
 							if (ImGui::Button("Name"))
 								ImpersonateName(selectedPlayer.get_PlayerData());
@@ -692,7 +655,6 @@ namespace PlayersTab {
 					}
 				}
 
-				ImGui::Dummy(ImVec2(5, 5) * State.dpiScale);
 				if (!State.SafeMode && ImGui::Button("Impersonate Everyone To") && selectedPlayers.size() == 1) {
 					app::NetworkedPlayerInfo_PlayerOutfit* outfit = GetPlayerOutfit(selectedPlayer.get_PlayerData());
 					auto petId = outfit->fields.PetId;
@@ -728,33 +690,21 @@ namespace PlayersTab {
 				{
 					if (ImGui::Button("Reset Impersonation"))
 					{
-						std::queue<RPCInterface*>* queue = nullptr;
-
-						if (IsInGame())
-							queue = &State.rpcQueue;
-						else if (IsInLobby())
-							queue = &State.lobbyRpcQueue;
-						if (queue != nullptr) {
-							if (IsHost() || !State.SafeMode)
-								queue->push(new RpcForceColor(*Game::pLocalPlayer, State.originalColor));
-							else
-								queue->push(new RpcSetColor(State.originalColor));
-							queue->push(new RpcSetPet(State.originalPet));
-							queue->push(new RpcSetSkin(State.originalSkin));
-							queue->push(new RpcSetHat(State.originalHat));
-							queue->push(new RpcSetVisor(State.originalVisor));
-							queue->push(new RpcSetNamePlate(State.originalNamePlate));
-							queue->push(new RpcSetName(State.originalName));
-							State.activeImpersonation = false;
-						}
+						ControlAppearance(false);
 					}
 				}
 
-				if (IsHost() && IsInLobby || !State.SafeMode && IsInLobby && ImGui::Button("Allow Player(s) to NoClip")) {
+				if ((IsInGame() || IsInLobby()) && ImGui::Button(selectedPlayers.size() == 1 ? "Allow Player to NoClip" : "Allow Players to NoClip")) {
 					for (auto p : selectedPlayers) {
 						if (p.has_value() && p.validate().is_LocalPlayer()) State.NoClip = true;
-						else State.lobbyRpcQueue.push(new RpcMurderLoop(*Game::pLocalPlayer, p.validate().get_PlayerControl(), 1, true)); //Doesn't work, if user uses cheat-client!
-						convert_from_string(NetworkedPlayerInfo_get_PlayerName(p.validate().get_PlayerData(), NULL));
+						else State.lobbyRpcQueue.push(new RpcMurderLoop(*Game::pLocalPlayer, p.validate().get_PlayerControl(), 1, true));
+						if (selectedPlayers.size() == 1) {
+							ShowHudNotification(std::format("Allowed {} to NoClip!",
+								convert_from_string(NetworkedPlayerInfo_get_PlayerName(p.validate().get_PlayerData(), NULL))));
+						}
+						else {
+							ShowHudNotification(std::format("Allowed {} players to NoClip!", selectedPlayers.size()));
+						}
 					}
 				}
 
@@ -774,44 +724,49 @@ namespace PlayersTab {
 					}
 				}
 
-				static int murderCount = 0;
-				static int murderDelay = 0;
-
-				if (IsInLobby() && ImGui::Button("Infinity kills")) {
-					murderLoop = true;
-					murderCount = 999999; //Just for test
-				}
-
-				if (murderDelay <= 0) {
-					if (murderCount > 0 && selectedPlayer.has_value()) {
-						for (auto p : selectedPlayers) {
-							auto validPlayer = p.validate();
-							if (IsInGame()) {
-								State.rpcQueue.push(new RpcMurderPlayer(*Game::pLocalPlayer, validPlayer.get_PlayerControl(),
-									validPlayer.get_PlayerControl()->fields.protectedByGuardianId < 0 || State.BypassAngelProt));
-							}
-							else if (IsInLobby()) {
-								State.lobbyRpcQueue.push(new RpcMurderPlayer(*Game::pLocalPlayer, validPlayer.get_PlayerControl(),
-									validPlayer.get_PlayerControl()->fields.protectedByGuardianId < 0 || State.BypassAngelProt));
-							}
+				if (IsInGame() || IsInLobby()) {
+					if ((IsInGame() || (IsInLobby()))) {
+						if (ImGui::Button("Murder Loop")) {
+							murderLoop = true;
+							murderCount = 1000; //controls how many times the player is to be murdered
 						}
-						murderDelay = 3;
-						murderCount--;
+						if (ImGui::Button(std::format("Stop Murder Loop ({})", 1000 - murderCount).c_str())) {
+							murderLoop = false;
+							murderCount = 0;
+						}
 					}
-					else {
-						murderLoop = false;
-						murderCount = 0;
+
+					if (murderDelay <= 0) {
+						if (murderCount > 0 && selectedPlayer.has_value()) {
+							for (auto p : selectedPlayers) {
+								auto validPlayer = p.validate();
+								if (IsInGame()) {
+									State.rpcQueue.push(new RpcMurderLoop(*Game::pLocalPlayer, validPlayer.get_PlayerControl(), 1, false));
+								}
+								else if (IsInLobby()) {
+									State.lobbyRpcQueue.push(new RpcMurderLoop(*Game::pLocalPlayer, validPlayer.get_PlayerControl(), 1, false));
+								}
+							}
+							murderDelay = 3;
+							murderCount--;
+						}
+						else {
+							murderLoop = false;
+							murderCount = 0;
+						}
 					}
+					else murderDelay--;
 				}
-				else murderDelay--;
-				
-				static int suicideCount = 0;
-				static int suicideDelay = 0;
+
 				if (!State.SafeMode && IsInGame()) {
 					ImGui::SameLine();
-					if (ImGui::Button("Suicide Loop")) {
+					if (!suicideLoop && ImGui::Button("Suicide Loop")) {
 						suicideLoop = true;
-						suicideCount = 20; //controls how many times the player is to be suicided
+						suicideCount = 200; //controls how many times the player is to be murdered
+					}
+					if (suicideLoop && ImGui::Button(std::format("Stop Suicide Loop ({})", 800 - murderCount * 4).c_str())) {
+						suicideLoop = false;
+						suicideCount = 0;
 					}
 
 					if (suicideDelay <= 0) {
@@ -838,7 +793,7 @@ namespace PlayersTab {
 					else suicideDelay--;
 				}
 
-				if (!State.SafeMode && selectedPlayers.size() == 1 && IsInGame()) {
+				if (selectedPlayers.size() == 1 && (IsInGame() || (IsInLobby()))) {
 					if (ImGui::Button("Kill Crewmates By")) {
 						for (auto player : GetAllPlayerControl()) {
 							if (!PlayerIsImpostor(GetPlayerData(player))) {
@@ -891,8 +846,8 @@ namespace PlayersTab {
 						}
 					}
 				}
-
-				if ((IsHost() || !State.SafeMode) && State.InMeeting && selectedPlayers.size() == 1) {
+				ImGui::NewLine();
+				if ((State.InMeeting && selectedPlayers.size() == 1)) {
 					if (ImGui::Button("Vote Off")) {
 						for (auto player : GetAllPlayerControl()) {
 							if (player != selectedPlayer.get_PlayerControl()) {
@@ -925,14 +880,14 @@ namespace PlayersTab {
 
 				if ((IsInGame() || IsInLobby()) && selectedPlayer.has_value() && selectedPlayers.size() == 1)
 				{
-					if ((State.playerToAttach.equals(State.selectedPlayer) && State.ActiveAttach) || (selectedPlayer.is_LocalPlayer() && selectedPlayer.has_value())) {
+					if (State.ActiveAttach && selectedPlayer.has_value() && (State.playerToAttach.equals(State.selectedPlayer) || selectedPlayer.is_LocalPlayer())) {
 						if (ImGui::Button("Stop Attaching")) {
 							State.playerToAttach = {};
 							State.ActiveAttach = false;
 						}
 					}
 					else {
-						if (ImGui::Button("Attach To") && !selectedPlayer.is_LocalPlayer()) {
+						if (!selectedPlayer.is_LocalPlayer() && ImGui::Button("Attach To")) {
 							State.playerToAttach = State.selectedPlayer;
 							State.ActiveAttach = true;
 						}
@@ -957,7 +912,7 @@ namespace PlayersTab {
 					}
 				}
 
-				if (IsHost() && (IsInGame() || IsInLobby()) && selectedPlayer.get_PlayerData()->fields.IsDead && selectedPlayers.size() == 1) {
+				if ((IsInGame() || IsInLobby()) && selectedPlayer.get_PlayerData()->fields.IsDead && selectedPlayers.size() == 1) {
 					if (ImGui::Button("Revive"))
 					{
 						if (IsInGame()) {
@@ -969,7 +924,7 @@ namespace PlayersTab {
 					}
 				}
 
-				if ((IsHost() || !State.SafeMode) && (IsInGame() || IsInLobby()) && selectedPlayers.size() == 1) {
+				if ((IsInGame() || IsInLobby()) && selectedPlayers.size() == 1) {
 					if (CustomListBoxInt("Select Role", &State.FakeRole, FAKEROLES, 100.0f * State.dpiScale))
 						State.Save();
 					ImGui::SameLine();
@@ -983,7 +938,7 @@ namespace PlayersTab {
 				}
 
 				if (GameOptions().GetBool(BoolOptionNames__Enum::VisualTasks)) {
-					if (!State.SafeMode && ImGui::Button("Set Scanner")) {
+					if (ImGui::Button("Set Scanner")) {
 						for (auto p : selectedPlayers) {
 							if (IsInGame())
 								State.rpcQueue.push(new RpcForceScanner(p.validate().get_PlayerControl(), true));
@@ -992,7 +947,7 @@ namespace PlayersTab {
 						}
 					}
 					ImGui::SameLine();
-					if (!State.SafeMode && ImGui::Button("Stop Scanner")) {
+					if (ImGui::Button("Stop Scanner")) {
 						for (auto p : selectedPlayers) {
 							if (IsInGame())
 								State.rpcQueue.push(new RpcForceScanner(p.validate().get_PlayerControl(), false));
@@ -1070,10 +1025,8 @@ namespace PlayersTab {
 						}
 					}
 				}
-
-				{
-					ImGui::Dummy(ImVec2(5, 5) * State.dpiScale);
-					if ((IsInGame() || IsInLobby())) !selectedPlayer.is_Disconnected() && !selectedPlayer.is_LocalPlayer();
+				if (State.selectedPlayers.size() == 1) {
+					if ((IsInGame() || IsInLobby()) && !selectedPlayer.is_Disconnected() && !selectedPlayer.is_LocalPlayer())
 					{
 						if (State.playerToWhisper.equals(State.selectedPlayer) && State.activeWhisper) {
 							if (ImGui::Button("Stop Whispering To")) {
@@ -1090,7 +1043,6 @@ namespace PlayersTab {
 					}
 
 					//we have to send these rpc messages as ourselves since anticheat only allows you to send rpcs with your own net id
-					ImGui::Dummy(ImVec2(5, 5)* State.dpiScale);
 					if (ImGui::Button(!State.SafeMode ? "Force AUM Detection" : "Fake AUM Detection")) {
 						if (IsInGame()) State.rpcQueue.push(new RpcForceDetectAum(selectedPlayer, !State.SafeMode));
 						if (IsInLobby()) State.lobbyRpcQueue.push(new RpcForceDetectAum(selectedPlayer, !State.SafeMode));
@@ -1120,26 +1072,6 @@ namespace PlayersTab {
 						}
 					}
 				}
-				ImGui::Dummy(ImVec2(30, 30)* State.dpiScale);
-				if ((IsInGame() || IsInLobby()) && ImGui::Button("Murder Spam")) {
-					murderLoop = true;
-					murderCount = 30; //controls how many times the player is to be murdered
-				}
-					State.Save();
-					if ((IsHost())) ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), (" Don't click many times, It may be cause bugs!\n\n (Exit from game without causes)\n Wait ~5 seconds, after activate!"));
-			}
-
-			if (openPUID && selectedPlayer.has_value()) {
-				ImGui::Dummy(ImVec2(3, 3)* State.dpiScale);
-				if (convert_from_string(selectedPlayer.get_PlayerData()->fields.Puid) != "" && ImGui::Button("Steal PUID")) {
-					State.FakePuid = convert_from_string(selectedPlayer.get_PlayerData()->fields.Puid);
-					State.Save();
-				}
-				if (InputString(" Stolen PUID", &State.FakePuid)) State.Save(); {
-					State.Save();
-					ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), ("What can you do with a PUID:\n\n\n1. *Conditional Key* for submit to to the \nInnersloth support zendesk \"delete account\"\non behalf of the PUID owner\n\n2. *Conditional Key* for submit to to the \nInnersloth support zendesk \"ban account\"\non behalf of the PUID owner\n\n3. *Conditional Key* for Account recovery via\nInnersloth support zendesk\n\n\n\n! USE ONLY FOR THE INTENDED PURPOSE !"));
-					State.Save();
-				}
 			}
 			ImGui::EndChild();
 		}
@@ -1147,6 +1079,22 @@ namespace PlayersTab {
 		if (openPlayer || State.selectedPlayers.size() == 0 || IsInLobby()) { //clear murder/suicide loops
 			murderLoop = false;
 			suicideLoop = false;
+			murderCount = 0;
+			suicideCount = 0;
+		}
+
+		static int blinkDelay = 0;
+		static bool isBlinking = false;
+		if (State.BlinkPlayersTab && !isBlinking) {
+			blinkDelay = 20;
+			isBlinking = true;
+		}
+		if (isBlinking) {
+			if (blinkDelay >= 0) blinkDelay--;
+			if (blinkDelay == 0) {
+				State.BlinkPlayersTab = false;
+				isBlinking = false;
+			}
 		}
 	}
 }

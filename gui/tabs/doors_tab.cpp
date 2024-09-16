@@ -80,6 +80,7 @@ namespace DoorsTab {
 				State.rpcQueue.push(new RpcCloseDoorsOfType(GetSystemTypes(GetTrueAdjustedPosition(*Game::pLocalPlayer)), false));
 			}
 			if (State.ShowKeybinds)
+				ImGui::SameLine();
 
 			if (ImGui::Button("Pin All Doors"))
 			{
