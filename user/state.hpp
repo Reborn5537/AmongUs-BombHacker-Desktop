@@ -31,6 +31,7 @@ public:
     };
 
     std::string selectedConfig = "default";
+    int selectedConfigInt = 0;
 
     bool ImGuiInitialized = false;
     bool HasOpenedMenuBefore = false;
@@ -41,19 +42,17 @@ public:
     bool showDebugTab = false;
 #endif
     bool RgbMenuTheme = false;
+    bool GradientMenuTheme = false;
+    bool MatchBackgroundWithTheme = false;
     bool SetName = false;
     bool SafeMode = true;
-    bool SpoofPuid = false;
-    bool DisableSafeMode = true;
     bool UnlockCosmetics = true;
-    bool FreeStars = true;
     bool SpoofLevel = false;
     int FakeLevel = 1;
     bool ShowKeybinds = true;
     bool KeybindsWhileChatting = true;
     bool SpoofFriendCode = false;
     bool UseGuestFriendCode = false;
-    std::string FakePuid = "";
     std::string GuestFriendCode = "";
     std::string FakeFriendCode = "";
     bool SpoofPlatform = false;
@@ -86,12 +85,14 @@ public:
     bool DisableVents = false;
     bool SpamReport = false;
     bool DisableMeetings = false;
-    bool Nothing = false;
     bool DisableSabotages = false;
     bool DisableKills = false;
+    bool BattleRoyale = false;
     bool NoGameEnd = false;
     bool ChatSpam = false;
     bool ChatSpamEveryone = false;
+    bool AutoJoinLobby = false;
+    std::string AutoJoinLobbyCode = "";
 
     bool ShowProtections = false;
     std::map<Game::PlayerId, std::pair<Game::ColorId, float/*Time*/>> protectMonitor;
@@ -142,10 +143,10 @@ public:
     ImVec4 NameColor1 = ImVec4(1.f, 1.f, 1.f, 1.f);
     ImVec4 NameColor2 = ImVec4(1.f, 1.f, 1.f, 1.f);
     float RgbNameColor = 0.f;
-    float RBNameColor = 0.f;
     bool ServerSideCustomName = false;
-    bool ServerSideCustomNameForEveryone = false;
     bool NoAbilityCD = false;
+    bool DarkMode = false;
+    bool SeeVanishedPlayers = false;
     bool CycleInMeeting = true;
     bool CycleBetweenPlayers = false;
 
@@ -157,7 +158,6 @@ public:
     bool MoveInVentAndShapeshift = false;
     bool AlwaysMove = false;
     bool AnimationlessShapeshift = false;
-    bool AnimationlessVanish = false;
     bool DisableKillAnimation = false;
     bool KillImpostors = false;
     bool KillInVanish = false;
@@ -173,6 +173,7 @@ public:
     bool ShowFps = false;
     bool DoTasksAsImpostor = false;
     bool AlwaysUseKillExploit = false;
+    bool AutoCopyLobbyCode = false;
 
     PlayerSelection selectedPlayer;
     std::vector<uint8_t> selectedPlayers = {};
@@ -209,7 +210,6 @@ public:
     bool ChatActiveOriginalState = false;
     bool ReadGhostMessages = false;
     bool ReadAndSendAumChat = false;
-    bool SendAumChat = false;
     bool ShiftRightClickTP = false;
     bool TeleportEveryone = false;
     bool RotateEveryone = false;
@@ -252,8 +252,9 @@ public:
 
     std::map<Game::Voter, Game::VotedFor> voteMonitor;
 
-    std::vector<Game::PlayerId> aumUsers;
-    std::vector<Game::PlayerId> sickoUsers;
+    //std::vector<Game::PlayerId> aumUsers;
+    //std::vector<Game::PlayerId> sickoUsers;
+    std::map<Game::PlayerId, std::string> modUsers;
     int32_t rpcCooldown = 15;
     int32_t playerKilledId = 0;
 
@@ -286,6 +287,9 @@ public:
     bool FakeCameraUsage = false;
 
     ImVec4 MenuThemeColor = ImVec4(1.f, 0.f, 0.424f, 1.f);
+    ImVec4 MenuGradientColor = ImVec4(1.f, 0.f, 0.424f, 1.f);
+    ImVec4 MenuGradientColor1 = ImVec4(1.f, 0.f, 0.424f, 1.f);
+    ImVec4 MenuGradientColor2 = ImVec4(1.f, 0.f, 0.424f, 1.f);
     ImVec4 RgbColor = ImVec4(1.f, 0.071f, 0.f, 1.f);
     ImVec4 SelectedColor = ImVec4(1.f, 1.f, 1.f, 0.75f);
     ImVec4 SelectedReplayMapColor = ImVec4(1.f, 1.f, 1.f, 0.75f);
@@ -322,8 +326,6 @@ public:
     Vector3 prevCamPos = { NULL, NULL, NULL };
 
     bool FlipSkeld = false;
-    bool FuckHudson = false;
-    bool FuckExploit = true;
     bool CustomImpostorAmount = false;
     int ImpostorCount = 1;
     bool DisableCallId = false;
@@ -332,10 +334,9 @@ public:
 
 	bool OcclusionCulling = false;
     bool ShowUnityLogs = true;
+    bool ShowHookLogs = false;
 
     int LobbyTimer = -1;
-    int LobbyTimeUp = -1;
-    int LobbyTimerInf = 99999;
     float ChatCooldown = 0.f;
     bool MessageSent = false;
     bool ChatFocused = false;
@@ -354,14 +355,25 @@ public:
 
     bool PanicMode = false;
     bool TempPanicMode = false; //prevent instant crash on joining lobby
+    bool BlinkPlayersTab = false; //prevent instant crash on player leaving
     bool SickoDetection = true;
     bool ForceLoginAsGuest = false;
     bool DisableHostAnticheat = false;
-    bool EnableSickoAntiCheat = false;
+    bool TournamentMode = false;
 
     std::unordered_set<std::string> Friends;
-
-    std::unordered_set<std::string> Blocked;
+    std::unordered_set<Game::PlayerId> InGameFriends;
+    std::vector<std::string /*friendcode*/> tournamentFriendCodes;
+    std::map<std::string /*friendcode*/, float /*points*/> tournamentPoints;
+    std::map<std::string /*friendcode*/, float /*points*/> tournamentWinPoints;
+    std::map<std::string /*friendcode*/, float /*points*/> tournamentCalloutPoints;
+    std::map<std::string /*friendcode*/, float /*points*/> tournamentEarlyDeathPoints;
+    std::map<std::string /*friendcode*/, float /*points*/> tournamentKillCaps;
+    std::vector<std::string> tournamentAssignedImpostors;
+    std::vector<std::string> tournamentAliveImpostors;
+    std::vector<std::string> tournamentCallers;
+    std::vector<std::string> tournamentCalledOut;
+    bool tournamentFirstMeetingOver = false;
 
     enum class MapType : uint8_t
     {
@@ -372,12 +384,28 @@ public:
         Fungle = 4
     } mapType = MapType::Ship;
 
+    enum class PointReason : uint8_t
+    {
+        ImpKill = 0,
+        ImpWin = 1,
+        AllImpsWin = 2,
+        ImpVoteOut = 3,
+        CrewVoteOut = 4,
+        ImpVoteOutCorrect = 5,
+        ImpVoteOutIncorrect = 6,
+        CrewWin = 7,
+        CorrectCallout = 8,
+        IncorrectCallout = 9,
+        ImpLose = 10,
+    };
+
     bool CanChangeOutfit = false;
     uint8_t OutfitCooldown = 50;
     RoleTypes__Enum RealRole = RoleTypes__Enum::Crewmate;
     DisconnectReasons__Enum LastDisconnectReason = DisconnectReasons__Enum::Unknown;
     std::string LastLobbyJoined = "";
     bool IsPreHosting = false;
+    bool GameLoaded = false;
 
     bool AutoOpenDoors = false;
 
@@ -386,10 +414,39 @@ public:
         Replay::Reset();
     }
 
-    std::string SickoVersion = "v0.8-Alpha";
+    std::string SickoVersion = "v0.9-Alpha";
+
+    bool Enable_SMAC = false;
+    int SMAC_Punishment = 0;
+    int SMAC_HostPunishment = 0;
+    bool SMAC_AddToBlacklist = false;
+    bool SMAC_PunishBlacklist = false;
+    bool SMAC_CheckAUM = true;
+    bool SMAC_CheckSicko = true;
+    bool SMAC_CheckBadNames = true;
+    bool SMAC_CheckColor = true;
+    bool SMAC_CheckCosmetics = true;
+    bool SMAC_CheckChatNote = true;
+    bool SMAC_CheckScanner = true;
+    bool SMAC_CheckAnimation = true;
+    bool SMAC_CheckTasks = true;
+    bool SMAC_CheckRole = true;
+    bool SMAC_CheckChat = true;
+    bool SMAC_CheckMeeting = true;
+    bool SMAC_CheckReport = true;
+    bool SMAC_CheckMurder = true;
+    bool SMAC_CheckShapeshift = true;
+    bool SMAC_CheckVanish = true;
+    bool SMAC_CheckLevel = true;
+    bool SMAC_CheckVent = true;
+    bool SMAC_CheckSabotage = true;
+    int SMAC_HighLevel = 1000;
+    std::map<std::string /*puid*/, std::string> SMAC_Blacklist = {};
+    std::vector<uint8_t> SMAC_AttemptBanLobby = {};
 
     void Load();
     void Save();
+    void Delete();
 };
 
 extern Settings State;

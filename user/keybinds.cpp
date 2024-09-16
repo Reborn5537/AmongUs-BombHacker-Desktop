@@ -200,13 +200,10 @@ void KeyBinds::to_json(nlohmann::ordered_json& j, KeyBinds::Config value)
         {"Toggle_Freecam", value.Toggle_Freecam},
         {"Close_Current_Room_Door", value.Close_Current_Room_Door},
         {"Toggle_Replay", value.Toggle_Replay},
-        {"Toggle_ChatAlwaysActive", value.Toggle_ChatAlwaysActive},
-        {"Toggle_ReadGhostMessages", value.Toggle_ReadGhostMessages},
         {"Toggle_Hud", value.Toggle_Hud},
         {"Reset_Appearance", value.Reset_Appearance},
         {"Randomize_Appearance", value.Randomize_Appearance},
         {"Complete_Tasks", value.Complete_Tasks},
-        {"Toggle_SendStartGame", value.Toggle_SendStartGame},
         {"Toggle_Sicko", value.Toggle_Sicko},
     };
 }
@@ -224,12 +221,9 @@ void KeyBinds::from_json(const nlohmann::ordered_json& j, KeyBinds::Config& valu
     j.at("Toggle_Freecam").get_to(value.Toggle_Freecam);
     j.at("Close_Current_Room_Door").get_to(value.Close_Current_Room_Door);
     j.at("Toggle_Replay").get_to(value.Toggle_Replay);
-    j.at("Toggle_ChatAlwaysActive").get_to(value.Toggle_ChatAlwaysActive);
-    j.at("Toggle_ReadGhostMessages").get_to(value.Toggle_ReadGhostMessages);
     j.at("Toggle_Hud").get_to(value.Toggle_Hud);
     j.at("Reset_Appearance").get_to(value.Reset_Appearance);
     j.at("Randomize_Appearance").get_to(value.Randomize_Appearance);
     j.at("Complete_Tasks").get_to(value.Complete_Tasks);
-    j.at("Toggle_SendStartGame").get_to(value.Toggle_SendStartGame);
     j.at("Toggle_Sicko").get_to(value.Toggle_Sicko);
 }

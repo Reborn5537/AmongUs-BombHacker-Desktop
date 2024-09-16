@@ -17,13 +17,10 @@ namespace KeyBinds {
         uint8_t Toggle_Freecam;
         uint8_t Close_Current_Room_Door;
         uint8_t Toggle_Replay;
-        uint8_t Toggle_ChatAlwaysActive;
-        uint8_t Toggle_ReadGhostMessages;
         uint8_t Toggle_Hud;
         uint8_t Reset_Appearance;
         uint8_t Randomize_Appearance;
         uint8_t Complete_Tasks;
-        uint8_t Toggle_SendStartGame;
         uint8_t Toggle_Sicko;
     };
 
